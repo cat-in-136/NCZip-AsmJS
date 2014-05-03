@@ -269,7 +269,7 @@ NCZip.prototype = {
       // Size of the Local file header
       fileLength += 30 + filePath.length;
       // Size of the file content
-      fileLength += fileContent.length;
+      fileLength += fileContent.byteLength;
       // Size of the Central directory file header
       fileLength += 46 + filePath.length;
     }
