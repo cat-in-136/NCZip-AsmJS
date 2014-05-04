@@ -243,33 +243,33 @@ NCZip.prototype = {
     this.fileEntries = [];
   },
   file: function(path, content, option) {
-    var buffer = undefined;
-    if (!option) { option = {}; }
-    if (typeof(content) === "string") {
-      if (option.base64) {
-        content = atob(content);
-      }
-      var buffer = new ArrayBuffer(content.length);
-      var u8 = new Uint8Array(buffer);
-      for (var i = 0; i < content.length; i++) {
-        u8[i] = content.charCodeAt(i);
-      }
-    } else if (content instanceof ArrayBuffer) {
-      buffer = content;
+    if (option && option.base64) {
+      content = atob(content);
     }
 
-    this.fileEntries.push({path: path, content: buffer});
+    var fileEntry = {
+      path: path,
+      content: content
+    };
+    if (typeof(content) === "string") {
+      fileEntry.size = content.length;
+    } else if (content instanceof ArrayBuffer) {
+      fileEntry.size = content.byteLength;
+    }
+
+    this.fileEntries.push(fileEntry);
   },
   precaluculateOutputSize : function () {
     var fileLength = 0;
     for (var i = 0; i < this.fileEntries.length; i++) {
       var filePath = this.fileEntries[i].path;
       var fileContent = this.fileEntries[i].content;
+      var fileSize = this.fileEntries[i].size;
 
       // Size of the Local file header
       fileLength += 30 + filePath.length;
       // Size of the file content
-      fileLength += fileContent.byteLength;
+      fileLength += fileSize;
       // Size of the Central directory file header
       fileLength += 46 + filePath.length;
     }
@@ -280,8 +280,16 @@ NCZip.prototype = {
   },
   _memcpy_buffer: function(dst, dstOffset, src, srcOffset, size) {
     var dstU8 = new Uint8Array(dst, dstOffset, size);
-    var srcU8 = new Uint8Array(src, srcOffset, size);
-    dstU8.set(srcU8);
+    if ((src instanceof ArrayBuffer) || (src instanceof Array)) {
+      var srcU8 = new Uint8Array(src, srcOffset, size);
+      dstU8.set(srcU8);
+    } else if (typeof(src) === "string") {
+      for (var i = 0; i < size; i++) {
+        dstU8[i] = src.charCodeAt(srcOffset + i);
+      }
+    } else {
+      throw new Error("Invalid type");
+    }
   },
   _build: function(options) {
     var bufferMap = {
@@ -313,7 +321,7 @@ NCZip.prototype = {
     for (var i = 0; i < this.fileEntries.length; i++) {
       var filePath = this.fileEntries[i].path;
       var fileHeaderLength = 30 + filePath.length;
-      var fileSize = this.fileEntries[i].content.byteLength;
+      var fileSize = this.fileEntries[i].size;
       var fileBuffer = this.fileEntries[i].content;
       // file Content
       this._memcpy_buffer(buffer, p + fileHeaderLength,
@@ -337,7 +345,7 @@ NCZip.prototype = {
     for (var i = 0; i < this.fileEntries.length; i++) {
       var filePath = this.fileEntries[i].path;
       var cdHeaderLength = 46 + filePath.length;
-      var fileSize = this.fileEntries[i].content.byteLength;
+      var fileSize = this.fileEntries[i].size;
       var fileMod = 0; // TODO
 
       // Central directory
