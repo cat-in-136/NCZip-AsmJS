@@ -1,3 +1,11 @@
+/**
+ * Non-compression Zip Generator powered by asm.js, Just for me to study asm.js.
+ * Copyright (C) 2014 @cat_in_136
+ *
+ * API is inspired by JSZip (http://stuk.github.io/jszip/ ).
+ * Avarilable under MIT License <http://opensource.org/licenses/mit-license.php>
+ */
+
 if (! Math.log2) {
   Math.log2 = function(x) { return Math.log(x) / Math.LN2; };
 }
