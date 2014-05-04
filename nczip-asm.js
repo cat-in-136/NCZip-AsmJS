@@ -1,12 +1,11 @@
-"use strict";
 if (! Math.log2) {
   Math.log2 = function(x) { return Math.log(x) / Math.LN2; };
 }
 function NCZip() {
   this.initialize();
 }
-NCZip.NCZModuleAsm = function NCZModuleAsm(stdlib, foreign, buffer) {
-  "use asm";
+NCZip.NCZModuleAsmTemplate = function NCZModuleAsm(stdlib, foreign, buffer) {
+  "asm template";//"use asm";
   
   var U1 = new stdlib.Uint8Array(buffer);
   var I1 = new stdlib.Int8Array(buffer);
@@ -291,6 +290,23 @@ NCZip.prototype = {
       throw new Error("Invalid type");
     }
   },
+  _getModule: function(stdlib, foreign, buffer) {
+    var nczModuleAsmFunc = NCZip.NCZModuleAsmTemplate;
+    var asmTemplate = NCZip.NCZModuleAsmTemplate.toString();
+    if (!this.asmNoUse) {
+      // Firefox-asm.js implementation issue:
+      //
+      // As a temporary limitation, modules cannot be linked more than once. ...
+      // To work around this, compile a second module (e.g., using the Function constructor).
+      if (asmTemplate.indexOf("asm template") > 0) {
+        asmTemplate = asmTemplate.toString().replace('asm template', 'use asm');
+        nczModuleAsmFunc = new Function("stdlib", "foreign", "buffer",
+                                        asmTemplate +
+                                        "\nreturn " + NCZip.NCZModuleAsmTemplate.name + "(stdlib, foreign, buffer)");
+      }
+    }
+    return nczModuleAsmFunc(stdlib, foreign, buffer);
+  },
   _build: function(options) {
     var bufferMap = {
       crc_table: 0, // 0..1023
@@ -302,7 +318,7 @@ NCZip.prototype = {
     var buffer = new ArrayBuffer(bufferLength);
     var u8 = new Uint8Array(buffer);
 
-    var module = NCZip.NCZModuleAsm({
+    var module = this._getModule({
       Uint8Array: Uint8Array,
       Int8Array: Int8Array,
       Uint16Array: Uint16Array,
